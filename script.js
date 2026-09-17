@@ -1,82 +1,156 @@
-const CONFIG = {
-  // Reemplazar por el número real con código de país, sin + ni espacios.
-  whatsappNumber: "",
-  calendarLocation: "Santiago de Chile",
-};
-
-const form = document.querySelector("#booking-form");
-const dialog = document.querySelector("#booking-dialog");
-const serviceField = document.querySelector("#service");
-const dateField = document.querySelector("#date");
-const menuButton = document.querySelector(".menu-toggle");
+const menuToggle = document.querySelector(".menu-toggle");
 const nav = document.querySelector(".nav");
+const bookingForm = document.querySelector("#booking-form");
+const bookingDialog = document.querySelector("#booking-dialog");
+const dialogClose = document.querySelector(".dialog-close");
+
+const serviceSelect = document.querySelector("#service");
+const clientName = document.querySelector("#client-name");
+const dateInput = document.querySelector("#date");
+const timeSelect = document.querySelector("#time");
+const notesInput = document.querySelector("#notes");
+
+const bookingSummary = document.querySelector("#booking-summary");
+const whatsappLink = document.querySelector("#whatsapp-link");
+const calendarLink = document.querySelector("#calendar-link");
+
+const whatsappNumber = "56900000000";
+
+document.querySelector("#year").textContent = new Date().getFullYear();
 
 const today = new Date();
-dateField.min = today.toISOString().split("T")[0];
-document.querySelector("#year").textContent = today.getFullYear();
+const localDate = new Date(
+    today.getTime() - today.getTimezoneOffset() * 60000
+)
+    .toISOString()
+    .split("T")[0];
 
-menuButton.addEventListener("click", () => {
-  const open = nav.classList.toggle("open");
-  menuButton.setAttribute("aria-expanded", String(open));
-  document.body.classList.toggle("menu-open", open);
+dateInput.min = localDate;
+
+menuToggle.addEventListener("click", () => {
+    const isOpen = nav.classList.toggle("open");
+
+    menuToggle.setAttribute("aria-expanded", String(isOpen));
+    document.body.classList.toggle("menu-open", isOpen);
+    menuToggle.textContent = isOpen ? "×" : "☰";
 });
 
-document.querySelectorAll(".nav a").forEach((link) => link.addEventListener("click", () => {
-  nav.classList.remove("open");
-  menuButton.setAttribute("aria-expanded", "false");
-  document.body.classList.remove("menu-open");
-}));
+document.querySelectorAll(".nav a").forEach((link) => {
+    link.addEventListener("click", () => {
+        nav.classList.remove("open");
+        document.body.classList.remove("menu-open");
+        menuToggle.setAttribute("aria-expanded", "false");
+        menuToggle.textContent = "☰";
+    });
+});
 
 document.querySelectorAll(".choose-service").forEach((button) => {
-  button.addEventListener("click", () => {
-    serviceField.value = button.dataset.service;
-    document.querySelector("#agenda").scrollIntoView({ behavior: "smooth" });
-    setTimeout(() => dateField.focus(), 450);
-  });
+    button.addEventListener("click", () => {
+        serviceSelect.value = button.dataset.service;
+
+        document.querySelector("#agenda").scrollIntoView({
+            behavior: "smooth"
+        });
+
+        setTimeout(() => {
+            clientName.focus();
+        }, 500);
+    });
 });
 
-function calendarDate(date, time, minutesToAdd = 0) {
-  const [year, month, day] = date.split("-").map(Number);
-  const [hours, minutes] = time.split(":").map(Number);
-  const value = new Date(year, month - 1, day, hours, minutes + minutesToAdd);
-  const pad = (number) => String(number).padStart(2, "0");
-  return `${value.getFullYear()}${pad(value.getMonth() + 1)}${pad(value.getDate())}T${pad(value.getHours())}${pad(value.getMinutes())}00`;
+function formatDate(dateValue) {
+    return new Intl.DateTimeFormat("es-CL", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric"
+    }).format(new Date(`${dateValue}T12:00:00`));
 }
 
-form.addEventListener("submit", (event) => {
-  event.preventDefault();
-  if (!form.reportValidity()) return;
+function formatCalendarDate(dateValue, timeValue) {
+    return `${dateValue.replaceAll("-", "")}T${timeValue.replace(":", "")}00`;
+}
 
-  const name = document.querySelector("#client-name").value.trim();
-  const service = serviceField.value;
-  const date = dateField.value;
-  const time = document.querySelector("#time").value;
-  const notes = document.querySelector("#notes").value.trim();
-  const formattedDate = new Intl.DateTimeFormat("es-CL", { dateStyle: "long" }).format(new Date(`${date}T12:00:00`));
-  const message = [
-    `Hola Zurieth 😊 Mi nombre es ${name} y quisiera solicitar una hora.`,
-    `Servicio: ${service}`,
-    `Fecha preferida: ${formattedDate}`,
-    `Horario preferido: ${time}`,
-    notes ? `Comentario: ${notes}` : "",
-    "¿Me confirmas disponibilidad, por favor?",
-  ].filter(Boolean).join("\n");
+bookingForm.addEventListener("submit", (event) => {
+    event.preventDefault();
 
-  const waBase = CONFIG.whatsappNumber ? `https://wa.me/${CONFIG.whatsappNumber}` : "https://wa.me/";
-  document.querySelector("#whatsapp-link").href = `${waBase}?text=${encodeURIComponent(message)}`;
-  const calendarParams = new URLSearchParams({
-    action: "TEMPLATE",
-    text: `${service} · Zurieth Arias`,
-    dates: `${calendarDate(date, time)}/${calendarDate(date, time, 60)}`,
-    details: `Solicitud de hora para ${name}. La cita queda sujeta a confirmación por WhatsApp.${notes ? `\n\nComentario: ${notes}` : ""}`,
-    location: CONFIG.calendarLocation,
-  });
-  document.querySelector("#calendar-link").href = `https://calendar.google.com/calendar/render?${calendarParams}`;
-  document.querySelector("#booking-summary").textContent = `${service}, el ${formattedDate} a las ${time}.`;
-  dialog.showModal();
+    if (!bookingForm.checkValidity()) {
+        bookingForm.reportValidity();
+        return;
+    }
+
+    const name = clientName.value.trim();
+    const service = serviceSelect.value;
+    const date = dateInput.value;
+    const time = timeSelect.value;
+    const notes = notesInput.value.trim();
+
+    const readableDate = formatDate(date);
+
+    bookingSummary.textContent =
+        `${name}, preparé tu solicitud para ${service}, ` +
+        `el ${readableDate} a las ${time}.`;
+
+    const whatsappMessage = [
+        "Hola Zurieth 👋",
+        "",
+        "Quisiera solicitar una hora:",
+        `• Nombre: ${name}`,
+        `• Servicio: ${service}`,
+        `• Fecha: ${readableDate}`,
+        `• Horario: ${time}`,
+        notes ? `• Comentario: ${notes}` : "",
+        "",
+        "¿Podrías confirmarme la disponibilidad? Gracias."
+    ]
+        .filter(Boolean)
+        .join("\n");
+
+    whatsappLink.href =
+        `https://wa.me/${whatsappNumber}?text=` +
+        encodeURIComponent(whatsappMessage);
+
+    const startDate = formatCalendarDate(date, time);
+
+    const start = new Date(`${date}T${time}:00`);
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+    const endDate =
+        `${end.getFullYear()}` +
+        `${String(end.getMonth() + 1).padStart(2, "0")}` +
+        `${String(end.getDate()).padStart(2, "0")}` +
+        `T${String(end.getHours()).padStart(2, "0")}` +
+        `${String(end.getMinutes()).padStart(2, "0")}00`;
+
+    const calendarParameters = new URLSearchParams({
+        action: "TEMPLATE",
+        text: `${service} con Zurieth Arias`,
+        dates: `${startDate}/${endDate}`,
+        details:
+            `Solicitud de atención para ${name}. ` +
+            `La disponibilidad debe ser confirmada por WhatsApp.`,
+        location: "Santiago de Chile"
+    });
+
+    calendarLink.href =
+        `https://calendar.google.com/calendar/render?${calendarParameters}`;
+
+    bookingDialog.showModal();
 });
 
-document.querySelector(".dialog-close").addEventListener("click", () => dialog.close());
-dialog.addEventListener("click", (event) => {
-  if (event.target === dialog) dialog.close();
+dialogClose.addEventListener("click", () => {
+    bookingDialog.close();
+});
+
+bookingDialog.addEventListener("click", (event) => {
+    const dialogPosition = bookingDialog.getBoundingClientRect();
+
+    const clickedOutside =
+        event.clientX < dialogPosition.left ||
+        event.clientX > dialogPosition.right ||
+        event.clientY < dialogPosition.top ||
+        event.clientY > dialogPosition.bottom;
+
+    if (clickedOutside) {
+        bookingDialog.close();
+    }
 });
